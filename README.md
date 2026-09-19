@@ -34,12 +34,6 @@ change progress or claim rewards. Progress bars show recorded metrics; reaching
 a threshold alone is not treated as an earned award. Revoked medals are labelled
 and excluded from Next Awards and Earned.
 
-The open panel refreshes about every five seconds. It marks data stale after 20
-seconds without a complete response and clears data on player/map/connection
-changes. Requests share the game's chat rate limit, so a busy chat may delay updates.
-On an older server, the panel waits for compatible data and the unsupported request
-may appear in chat. Close the panel to stop renewing its subscription.
-
 Version 0.1.1 caches unchanged medal pages and uses small keep-alive replies instead
 of downloading the full catalogue repeatedly. Idle payload fell by approximately
 99.25% in the synthetic benchmark. Server replies and database admissions are bounded

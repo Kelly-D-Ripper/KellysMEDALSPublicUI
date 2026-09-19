@@ -70,17 +70,17 @@ internal sealed class MedalsMfdUi : IDisposable
         }
         bool shown = screen != null && screen.isActive && DynamicMap.mapMaximized &&
             owner != null && owner.isActiveAndEnabled && ActiveLeft == screen && lease?.Owned == true;
-        if (canvas != null) canvas.enabled = shown;
-        if (root != null) root.gameObject.SetActive(shown);
+        if (canvas != null && canvas.enabled != shown) canvas.enabled = shown;
+        if (root != null && root.gameObject.activeSelf != shown) root.gameObject.SetActive(shown);
         if (!shown && screen != null && screen.isActive && owner != null && ActiveLeft != screen)
             screen.CloseScreen(Vector3.zero);
         if (shown)
         {
             // Native MFDScreen movement affects only registration, never the overlay canvas.
             Layout();
-            if (!wasVisible || Time.unscaledTime >= nextRefresh)
+            if (!wasVisible || contentDirty || Time.unscaledTime >= nextRefresh)
             {
-                nextRefresh = Time.unscaledTime + .25f;
+                nextRefresh = Time.unscaledTime + 1f;
                 Refresh();
             }
         }
@@ -199,10 +199,13 @@ internal sealed class MedalsMfdUi : IDisposable
         Camera? camera = nativeCanvas != null && nativeCanvas.renderMode != RenderMode.ScreenSpaceOverlay
             ? nativeCanvas.worldCamera : null;
         float leftEdge = RectTransformUtility.WorldToScreenPoint(camera, corners[0]).x;
-        var placement = MfdPanelLayout.Calculate(Screen.width, Screen.height, leftEdge, Width, Height);
-        panel.localScale = Vector3.one * placement.Scale;
-        panel.anchoredPosition = new Vector2(placement.X, -placement.Y);
         if (nativeCanvas != null) appearance?.Layout(panel, nativeCanvas, leftEdge, Width, Height);
+        else
+        {
+            var placement = MfdPanelLayout.Calculate(Screen.width, Screen.height, leftEdge, Width, Height);
+            panel.localScale = Vector3.one * placement.Scale;
+            panel.anchoredPosition = new Vector2(placement.X, -placement.Y);
+        }
     }
 
     internal bool Visible => screen != null && screen.isActive && owner != null && ActiveLeft == screen && DynamicMap.mapMaximized && lease?.Owned == true;
@@ -217,6 +220,9 @@ internal sealed class MedalsMfdUi : IDisposable
     private string category = "ALL", mode = "ALL", selected = "";
     private int tab, page;
     private List<MedalView> visible = new List<MedalView>();
+    private readonly MedalsViewCache view = new MedalsViewCache();
+    private bool contentDirty = true;
+    private int freshnessAge = int.MinValue;
 
     private void Build()
     {
@@ -287,22 +293,30 @@ internal sealed class MedalsMfdUi : IDisposable
     private void Refresh()
     {
         var rows = plugin.Session.Rows;
+        int age = rows == null ? -2 : plugin.Session.Fresh(Time.unscaledTime) ? Math.Max(0, (int)(Time.unscaledTime - plugin.Session.ReceivedAt)) : -1;
+        if (age != freshnessAge)
+        {
+            freshnessAge = age;
+            freshness!.text = age == -2 ? "Awaiting MEDALS server 1.13.1+…" : age == -1 ? "STALE • waiting for server refresh" : "LIVE • updated " + age + "s ago";
+        }
+        bool changed = view.Update(rows, category, mode, tab);
+        if (!contentDirty && !changed) return;
+        contentDirty = false;
         categoryLabel!.text = "CATEGORY: " + category.ToUpperInvariant();
         modeLabel!.text = "TRACK: " + mode.ToUpperInvariant();
         for (int i = 0; i < tabs.Count; i++)
         {
             var colors = tabs[i].colors; colors.normalColor = i == tab ? Green : Border; tabs[i].colors = colors;
         }
-        summary!.text = rows == null ? "YOUR CAREER RECORD" : rows.Count(r => r.Earned) + " / " + rows.Count + " MEDALS EARNED";
-        freshness!.text = rows == null ? "Awaiting MEDALS server 1.13.0+…" : plugin.Session.Fresh(Time.unscaledTime)
-            ? "LIVE • updated " + Math.Max(0, (int)(Time.unscaledTime - plugin.Session.ReceivedAt)) + "s ago"
-            : "STALE • waiting for server refresh";
-        visible = MedalsViewFilter.Select(rows ?? new List<MedalView>(), category, mode, tab);
+        summary!.text = rows == null ? "YOUR CAREER RECORD" : view.Earned + " / " + rows.Count + " MEDALS EARNED";
+        visible = view.Visible;
         int pages = Math.Max(1, (visible.Count + 4) / 5);
         page = Math.Max(0, Math.Min(page, pages - 1));
         previousPage!.interactable = page > 0;
         nextPage!.interactable = page < pages - 1;
         pageLabel!.text = visible.Count + " MATCHING  •  " + (page + 1) + " / " + pages;
+        var selection = visible.FirstOrDefault(r => r.Key == selected);
+        if (selection == null && visible.Count > page * 5) { selection = visible[page * 5]; selected = selection.Key; }
         for (int i = 0; i < rowButtons.Count; i++)
         {
             int index = page * 5 + i;
@@ -316,8 +330,6 @@ internal sealed class MedalsMfdUi : IDisposable
             bars[i].rectTransform.sizeDelta = new Vector2((float)(row.Earned ? 1 : row.Revoked ? 0 : row.Fraction) * 404, 3);
             var colors = rowButtons[i].colors; colors.normalColor = row.Key == selected ? Green : Border; rowButtons[i].colors = colors;
         }
-        var selection = visible.FirstOrDefault(r => r.Key == selected);
-        if (selection == null && visible.Count > page * 5) { selection = visible[page * 5]; selected = selection.Key; }
         detail!.text = selection == null ? rows == null ? "Your stats appear when this server supports MEDALS panels. No stats are stored on this client."
             : "No medals match this view. Try another category or track." : selection.Name + " • " + selection.Mode + "\n" + selection.Description +
             (selection.Revoked ? "\nRevoked by an administrator." : selection.Earned ? "\nEarned " + selection.AwardedUtc.Substring(0, Math.Min(10, selection.AwardedUtc.Length)) + " (UTC)" : "");
@@ -390,7 +402,7 @@ internal sealed class MedalsMfdUi : IDisposable
         colors.disabledColor = Muted;
         button.colors = colors;
         Text(border.transform, label, 5, 2, w - 10, h - 4, 13, Green, TextAlignmentOptions.Center);
-        button.onClick.AddListener(() => { click(); nextRefresh = 0f; });
+        button.onClick.AddListener(() => { click(); contentDirty = true; nextRefresh = 0f; });
         return button;
     }
 
@@ -475,6 +487,7 @@ internal sealed class MedalsMfdUi : IDisposable
         tabs.Clear(); rowButtons.Clear(); rowLabels.Clear(); bars.Clear();
         detailScroll = null; detailKey = "";
         visible.Clear(); selected = ""; page = 0;
+        view.Reset(); contentDirty = true; freshnessAge = int.MinValue;
 
         wasVisible = false;
     }

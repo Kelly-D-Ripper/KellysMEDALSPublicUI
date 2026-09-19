@@ -41,6 +41,27 @@ internal static class Program
         Check(MfdSlotLease<object>.TryClaim(slots, 5, med, i => true) == null, "full slots unchanged");
         var layout = MfdPanelLayout.Calculate(1280, 720, 420, 460, 760);
         Check(layout.Scale > 0 && layout.Y + layout.Scale * 760 <= 720, "viewport fit");
+        var publisher = new MedalsSnapshotPublisher();
+        session.Query(id);
+        foreach (var frame in publisher.Build(id, rows, true)) session.Receive(frame, 40);
+        var stableRows = session.Rows;
+        var keepAlive = publisher.Build(id, rows, true);
+        Check(keepAlive.Length == 1 && keepAlive[0].Length < 100, "small idle heartbeat");
+        Check(session.Receive(keepAlive[0], 45) && ReferenceEquals(stableRows,session.Rows), "heartbeat avoids decoding");
+        Check(!session.Receive(keepAlive[0], 70) && !session.Fresh(70), "replayed heartbeat rejected");
+        var cache = new MedalsViewCache(); cache.Update(rows,"ALL","ALL",0);
+        var stableView = cache.Visible;
+        Check(!cache.Update(rows,"ALL","ALL",0) && ReferenceEquals(stableView,cache.Visible), "view reuse");
+        Check(cache.Update(rows,"ALL","ALL",1), "user action invalidates cache");
+        var pump = new MedalsReplyPump<int>(); int sent=0, done=0;
+        for(int i=0;i<64;i++) pump.Enqueue(i,frames);
+        while(pump.Count>0)
+        {
+            int before=sent;
+            pump.Drain(4,i=>true,(i,f)=>sent++,(i,ok)=> { if(ok) done++; });
+            Check(sent-before<=4,"global reply cap");
+        }
+        Check(done==64,"all viewers complete");
         Console.WriteLine("PASS: " + checks + " client logic checks.");
     }
 }

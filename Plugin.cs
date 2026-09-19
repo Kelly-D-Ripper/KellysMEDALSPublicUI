@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace KellysMEDALSPublicUI;
 
-[BepInPlugin(PluginGuid, "Kelly's MEDALS Public UI", "0.1.0")]
+[BepInPlugin(PluginGuid, "Kelly's MEDALS Public UI", "0.1.1")]
 public sealed class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "kelly.nuclearoption.medals.publicui";
@@ -37,7 +37,7 @@ public sealed class Plugin : BaseUnityPlugin
             harmony = new Harmony(PluginGuid);
             harmony.Patch(receive, prefix: new HarmonyMethod(typeof(Plugin), nameof(Receive)));
             mfd = new MedalsMfdUi(this, message => Logger.LogInfo(message));
-            Logger.LogInfo("MEDALS panel ready. Open MED on the map; requires MEDALS server 1.13.0+.");
+            Logger.LogInfo("MEDALS panel ready. Open MED on the map; requires MEDALS server 1.13.1+.");
         }
         catch (Exception error) { harmony?.UnpatchSelf(); Logger.LogError(error); enabled = false; }
     }
@@ -58,8 +58,8 @@ public sealed class Plugin : BaseUnityPlugin
         bool connected = Context();
         mfd?.Tick(show?.Value == true);
         if (!connected || show?.Value != true || mfd?.Visible != true || Time.unscaledTime < nextRequest) return;
-        string id = Guid.NewGuid().ToString("N");
-        string command = MedalsUiProtocol.Command + id;
+        string id = Session.Request == null || !Session.Fresh(Time.unscaledTime) ? Guid.NewGuid().ToString("N") : Session.Request;
+        string command = MedalsUiProtocol.CompactCommand + id;
         // Shares the native chat budget with AIRLIFT. A renewable subscription avoids polling.
         if (!ChatManager.CanSend(command, false, false)) { nextRequest = Time.unscaledTime + 3; return; }
         Session.Query(id);

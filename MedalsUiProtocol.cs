@@ -22,6 +22,7 @@ namespace KellysMedalsUi
     internal static class MedalsUiProtocol
     {
         internal const string Command = "/medals ui1 ";
+        internal const string CompactCommand = "/medals ui2 ";
         internal const string Prefix = "[KMED1]|";
         internal const int MaxRows = 512, MaxChunks = 128, ChunkSize = 768, MaxBytes = 262144;
         internal static bool ValidId(string id) => id != null && id.Length == 32 && id.All(c =>
@@ -108,13 +109,26 @@ namespace KellysMedalsUi
         internal string Request { get; private set; }
         private string revision, completed;
         private string[] chunks;
-        internal void Query(string id) { Request = id; revision = completed = null; chunks = null; }
+        private long heartbeat;
+        internal void Query(string id)
+        {
+            if (id != null && id == Request) return; // Renew without discarding the acknowledged catalogue.
+            Request = id; revision = completed = null; chunks = null; heartbeat = 0;
+        }
         internal void Reset() { Query(null); Rows = null; ReceivedAt = 0; }
         internal bool Fresh(double now) => Rows != null && now - ReceivedAt < 20;
         internal bool Receive(string message, double now)
         {
             if (message == null || message.Length > 900 || !message.StartsWith(MedalsUiProtocol.Prefix, StringComparison.Ordinal)) return false;
             var parts = message.Split('|');
+            long sequence;
+            if (parts.Length == 6 && Request != null && parts[1] == Request && parts[3] == "H")
+            {
+                if (Rows == null || completed == null || parts[2] != completed || parts[5] != "" ||
+                    !long.TryParse(parts[4], NumberStyles.None, CultureInfo.InvariantCulture, out sequence) || sequence <= heartbeat) return false;
+                heartbeat = sequence; ReceivedAt = now;
+                return true;
+            }
             int index, count;
             if (parts.Length != 6 || Request == null || parts[1] != Request || !MedalsUiProtocol.ValidId(parts[2]) || parts[2] == completed ||
                 !int.TryParse(parts[3], NumberStyles.None, CultureInfo.InvariantCulture, out index) ||
@@ -126,8 +140,79 @@ namespace KellysMedalsUi
             if (chunks.Any(c => c == null)) return false;
             try { Rows = MedalsUiProtocol.Decode(string.Concat(chunks)); }
             catch (Exception e) when (e is IOException || e is FormatException || e is ArgumentException) { chunks = null; revision = null; return false; }
-            ReceivedAt = now; completed = revision; chunks = null; revision = null;
+            ReceivedAt = now; completed = revision; chunks = null; revision = null; heartbeat = 0;
             return true;
+        }
+    }
+
+    // Used on the ledger worker only. An unchanged catalogue needs no compression or client decode.
+    internal sealed class MedalsSnapshotPublisher
+    {
+        private List<MedalView> previous;
+        private string request, revision;
+        private long heartbeat;
+        internal void Reset() { previous = null; request = revision = null; heartbeat = 0; }
+        internal string[] Build(string id, List<MedalView> rows, bool compact)
+        {
+            if (rows == null) return new string[0];
+            if (compact && request == id && Equal(previous, rows))
+                return new[] { MedalsUiProtocol.Prefix + id + "|" + revision + "|H|" + (++heartbeat).ToString(CultureInfo.InvariantCulture) + "|" };
+            string nextRevision = Guid.NewGuid().ToString("N");
+            var frames = MedalsUiProtocol.Encode(id, nextRevision, rows).ToArray();
+            request = id; revision = nextRevision; heartbeat = 0; previous = rows;
+            return frames;
+        }
+        private static bool Equal(List<MedalView> a, List<MedalView> b)
+        {
+            if (a == null || a.Count != b.Count) return false;
+            for (int i = 0; i < a.Count; i++)
+            {
+                var x = a[i]; var y = b[i];
+                if (x.Key != y.Key || x.Name != y.Name || x.Description != y.Description || x.Mode != y.Mode ||
+                    x.Category != y.Category || x.Tier != y.Tier || x.Threshold != y.Threshold ||
+                    x.Progress != y.Progress || x.AwardedUtc != y.AwardedUtc || x.Revoked != y.Revoked) return false;
+            }
+            return true;
+        }
+    }
+
+    internal sealed class MedalsViewCache
+    {
+        private List<MedalView> source;
+        private string category, mode;
+        private int tab = -1;
+        internal List<MedalView> Visible { get; private set; } = new List<MedalView>();
+        internal int Earned { get; private set; }
+        internal bool Update(List<MedalView> rows, string category, string mode, int tab)
+        {
+            if (ReferenceEquals(source, rows) && this.category == category && this.mode == mode && this.tab == tab) return false;
+            source = rows; this.category = category; this.mode = mode; this.tab = tab;
+            Visible = rows == null ? new List<MedalView>() : MedalsViewFilter.Select(rows, category, mode, tab);
+            Earned = rows == null ? 0 : rows.Count(r => r.Earned);
+            return true;
+        }
+        internal void Reset() { source = null; category = mode = null; tab = -1; Visible.Clear(); Earned = 0; }
+    }
+
+    // Round-robin chunks cap burst work even when many subscribers finish together.
+    internal sealed class MedalsReplyPump<T>
+    {
+        private sealed class Work { internal T Owner; internal string[] Frames; internal int Index; }
+        private readonly Queue<Work> queue = new Queue<Work>();
+        internal int Count => queue.Count;
+        internal void Enqueue(T owner, string[] frames) { queue.Enqueue(new Work { Owner = owner, Frames = frames }); }
+        internal void Drain(int budget, Func<T, bool> current, Action<T, string> send, Action<T, bool> complete)
+        {
+            // Invalid/empty work consumes budget too, bounding disconnect cleanup.
+            while (budget-- > 0 && queue.Count > 0)
+            {
+                var work = queue.Dequeue();
+                if (!current(work.Owner) || work.Index >= work.Frames.Length) { complete(work.Owner, false); continue; }
+                try { send(work.Owner, work.Frames[work.Index++]); }
+                catch { complete(work.Owner, false); continue; }
+                if (work.Index == work.Frames.Length) complete(work.Owner, true);
+                else queue.Enqueue(work);
+            }
         }
     }
 

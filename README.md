@@ -1,18 +1,18 @@
 # Kelly's MEDALS Public UI
 
-**Public preview v0.1.0 — only works on the Aryx Shipyard Server.**
+**Public preview v0.1.1 — only works on the Aryx Shipyard Server.**
 The client cannot display stats from any other server. The companion server update
 is not distributed; this repository contains the client only.
 
 ## Download and install
 
-1. Download `KellysMEDALSPublicUI-0.1.0-CLIENT.zip` from
+1. Download `KellysMEDALSPublicUI-0.1.1-CLIENT.zip` from
    [Releases](https://github.com/Kelly-D-Ripper/KellysMEDALSPublicUI/releases).
 2. Close Nuclear Option. The client requires an existing BepInEx 5 installation.
 3. Extract the ZIP's `BepInEx` folder into your Nuclear Option game directory.
    The DLL should be at `BepInEx/plugins/KellysMEDALSPublicUI/KellysMEDALSPublicUI.dll`.
 4. Keep one active copy of the DLL. Put backups outside `BepInEx/plugins`.
-5. Join a server running MEDALS 1.13.0+, enlarge the map and press **MED**.
+5. Join a server running MEDALS 1.13.1+, enlarge the map and press **MED**.
 
 The download contains no server plugin, game files, BepInEx, SQLite or other mods.
 TALON and AIRLIFT are optional; their MFD buttons are preserved when present.
@@ -39,6 +39,12 @@ seconds without a complete response and clears data on player/map/connection
 changes. Requests share the game's chat rate limit, so a busy chat may delay updates.
 On an older server, the panel waits for compatible data and the unsupported request
 may appear in chat. Close the panel to stop renewing its subscription.
+
+Version 0.1.1 caches unchanged medal pages and uses small keep-alive replies instead
+of downloading the full catalogue repeatedly. Idle payload fell by approximately
+99.25% in the synthetic benchmark. Server replies and database admissions are bounded
+globally, with gameplay facts taking priority over UI reads. See
+[performance measurements and their limits](PERFORMANCE.md).
 
 MED reserves the last vacant extra MFD position. It never replaces the three native
 buttons or an occupied mod button. If all extra buttons are occupied, it waits for

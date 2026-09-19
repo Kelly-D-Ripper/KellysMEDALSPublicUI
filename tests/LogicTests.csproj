@@ -1,0 +1,11 @@
+<Project Sdk="Microsoft.NET.Sdk">
+  <PropertyGroup>
+    <OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework>
+    <LangVersion>latest</LangVersion><Nullable>enable</Nullable><ImplicitUsings>disable</ImplicitUsings>
+  </PropertyGroup>
+  <ItemGroup>
+    <Compile Include="../MedalsUiProtocol.cs" Link="MedalsUiProtocol.cs" />
+    <Compile Include="../MfdSlotLease.cs" Link="MfdSlotLease.cs" />
+    <Compile Include="../MfdPanelLayout.cs" Link="MfdPanelLayout.cs" />
+  </ItemGroup>
+</Project>

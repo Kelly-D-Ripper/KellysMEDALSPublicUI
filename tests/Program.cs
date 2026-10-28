@@ -20,7 +20,8 @@ internal static class Program
         var session = new MedalsUiSession(); session.Query(id);
         Check(frames.Length > 1 && frames.All(f => f.Length <= 900), "bounded frames");
         Check(!session.Receive(frames[0], 1) && session.Rows == null, "no partial display");
-        foreach (var frame in frames.Reverse()) session.Receive(frame, 1);
+        // Explicit LINQ call avoids newer compilers selecting a void span Reverse.
+        foreach (var frame in Enumerable.Reverse(frames)) session.Receive(frame, 1);
         Check(session.Rows.Count == rows.Count, "complete roundtrip");
         for (int i = 0; i < rows.Count; i++) Check(session.Rows[i].Key == rows[i].Key && session.Rows[i].Progress == rows[i].Progress, "row roundtrip");
         Check(session.Fresh(20) && !session.Fresh(21), "stale status");

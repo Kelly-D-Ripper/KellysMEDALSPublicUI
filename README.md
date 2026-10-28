@@ -1,12 +1,12 @@
 # Kelly's MEDALS Public UI
 
-**Public preview v0.1.1 — only works on the Aryx Shipyard Server.**
+**Public preview v0.1.2 — only works on the Aryx Shipyard Server.**
 The client cannot display stats from any other server. The companion server update
 is not distributed; this repository contains the client only.
 
 ## Download and install
 
-1. Download `KellysMEDALSPublicUI-0.1.1-CLIENT.zip` from
+1. Download `KellysMEDALSPublicUI-0.1.2-CLIENT.zip` from
    [Releases](https://github.com/Kelly-D-Ripper/KellysMEDALSPublicUI/releases).
 2. Close Nuclear Option. The client requires an existing BepInEx 5 installation.
 3. Extract the ZIP's `BepInEx` folder into your Nuclear Option game directory.
@@ -47,6 +47,28 @@ a vacancy. Closing the map hides the panel; switching native MFD pages closes it
 The first run creates `BepInEx/config/kelly.nuclearoption.medals.publicui.cfg`.
 Set `[General] Enabled = false` to disable the panel. Existing configs and databases
 are unaffected, and the client maintains no local stats database.
+
+## Nuclear Option 0.34.5 compatibility
+
+Version 0.1.2 is rebuilt and checked against Nuclear Option 0.34.5, Steam client
+build **26272685**. It preserves the direct private request route, which does not
+use the game's new typed slash-command parser. Medal rules, protocol, cached views
+and the MEDALS server 1.13.1+ requirement are unchanged. No database or configuration
+migration is needed. This is a compatibility rebuild, not a fix for a reproduced
+MEDALS gameplay failure.
+
+413 client logic checks, native hook/MFD checks and 167 game/Unity/Mirage member
+bindings pass. The audit also rejects four deliberately broken API contracts.
+Full multiplayer interaction and frame-time acceptance of this rebuilt client
+remain pending; preview status is retained. See [compatibility](COMPATIBILITY.md).
+
+## Build and test
+
+With the game and BepInEx 5 installed, run `./build.ps1`, `./tests/run.ps1` and
+`./tests/Test-GameApi.ps1 -SelfTest`. `./package.ps1` runs all three and packages
+only the client DLL and documentation. The native build uses Visual Studio 2022
+Build Tools; `-GameDir` selects the game directory. The game-free logic suite also
+runs with `dotnet run --project tests/LogicTests.csproj` on .NET 8.
 
 MIT licensed. The native MFD adapter derives from Kelly's TALON/AIRLIFT client work;
 copyright notices are retained in [LICENSE](LICENSE). Game UI assets remain owned by

@@ -1,4 +1,30 @@
-# MEDALS Public UI v0.1.1 — performance preview
+# MEDALS Public UI v0.1.2 — Nuclear Option 0.34.5 compatibility
+
+Client-only compatibility rebuild for Nuclear Option 0.34.5, Steam client build
+26272685. For the Aryx Shipyard Server; requires MEDALS server 1.13.1 or newer.
+
+- Preserves the direct private MEDALS request route through the native network
+  chat API. It does not depend on the redesigned typed slash-command parser.
+- Adds repeatable checks for native chat hooks, request routing, MFD fields,
+  client metadata and 167 game/Unity/Mirage member bindings. Four fault-injection
+  cases verify that incompatible APIs are rejected by the release audit.
+- Adds a standalone client package script and game-free CI logic tests.
+- Keeps all medal definitions, rewards, network protocol, cached views and settings
+  unchanged. Database impact: none. Configuration impact: none.
+
+Download `KellysMEDALSPublicUI-0.1.2-CLIENT.zip`, close Nuclear Option and replace
+the client DLL in `BepInEx/plugins/KellysMEDALSPublicUI/`. Keep one active copy;
+retain backups outside the plugins directory. Preserve your existing configuration.
+No server DLL, game assembly, database, credentials or third-party mod is bundled.
+
+Validation: 413 client logic checks and native compatibility checks pass against
+the updated game. The companion server's 2,320 MEDALS regression checks also pass.
+This is not a fix for a reproduced MEDALS gameplay fault. Existing 0.1.1 runtime
+logs show loading, MFD registration and panel opening, but do not prove the rebuilt
+0.1.2 client's full multiplayer behaviour or frame-time performance. This release
+retains preview status pending that acceptance. See COMPATIBILITY.md for the checks.
+
+## Previous release: v0.1.1 performance preview (September 2026)
 
 Adds **MED** to the last vacant left MFD button, using the same native styling as
 the TALON/AIRLIFT panels. Browse earned medals, progress toward upcoming awards,

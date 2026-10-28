@@ -10,7 +10,7 @@ using UnityEngine;
 
 namespace KellysMEDALSPublicUI;
 
-[BepInPlugin(PluginGuid, "Kelly's MEDALS Public UI", "0.1.1")]
+[BepInPlugin(PluginGuid, "Kelly's MEDALS Public UI", "0.1.2")]
 public sealed class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "kelly.nuclearoption.medals.publicui";
@@ -64,6 +64,8 @@ public sealed class Plugin : BaseUnityPlugin
         if (!ChatManager.CanSend(command, false, false)) { nextRequest = Time.unscaledTime + 3; return; }
         Session.Query(id);
         nextRequest = Time.unscaledTime + 30;
+        // Keep the direct network-chat route: 0.34.5's typed slash-command parser
+        // does not own the private MEDALS subscription protocol.
         ChatManager.SendChatMessage(command, false);
     }
     internal void MfdOpened() { if (!Session.Fresh(Time.unscaledTime)) nextRequest = Math.Min(nextRequest, Time.unscaledTime); }

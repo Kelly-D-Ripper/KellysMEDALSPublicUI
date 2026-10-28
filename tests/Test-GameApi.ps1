@@ -11,22 +11,37 @@ Add-Type -Path (Join-Path $core 'Mono.Cecil.dll')
 function Assert-GameContract($game) {
     $chat = $game.MainModule.Types | Where-Object FullName -eq 'NuclearOption.Chat.ChatManager'
     foreach ($contract in @(
-        @('SendChatMessage','System.String,System.Boolean','System.Void'),
-        @('CanSend','System.String,System.Boolean,System.Boolean','System.Boolean'),
-        @('UserCode_CmdSendChatMessage_-456754112','System.String,System.Boolean,Mirage.INetworkPlayer','System.Void'),
-        @('Skeleton_CmdSendChatMessage_-456754112','Mirage.NetworkBehaviour,Mirage.Serialization.NetworkReader,Mirage.INetworkPlayer,System.Int32','System.Void'),
-        @('UserCode_RpcTargetServerMessage_-537879009','Mirage.INetworkPlayer,System.String,System.Boolean','System.Void')
+        ,@('UserCode_RpcTargetServerMessage_-537879009','Mirage.INetworkPlayer,System.String,System.Boolean','System.Void')
     )) {
         $method = @($chat.Methods | Where-Object Name -eq $contract[0])
         if ($method.Count -ne 1 -or (($method[0].Parameters | ForEach-Object { $_.ParameterType.FullName }) -join ',') -ne $contract[1] -or
             $method[0].ReturnType.FullName -ne $contract[2]) { throw "Native chat contract changed: $($contract[0])" }
     }
-    $send = $chat.Methods | Where-Object Name -eq 'SendChatMessage'
-    $calls = @($send.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] } | ForEach-Object { $_.Operand.FullName })
-    $expected = @('System.Boolean NuclearOption.Chat.ChatManager::CanSend(System.String,System.Boolean,System.Boolean)',
-        'System.Void NuclearOption.Chat.ChatManager::CmdSendChatMessage(System.String,System.Boolean,Mirage.INetworkPlayer)')
-    if ($calls.Count -ne 2 -or @(Compare-Object $calls $expected).Count -ne 0) {
-        throw 'Direct MEDALS request route changed; inspect the new parser before releasing.'
+    $commands = $game.MainModule.Types | Where-Object Name -eq 'ChatCommandManager'
+    foreach ($contract in @(
+        @('ExecuteCommandLocal','System.String,System.String','System.Void'),
+        @('TryGetModServerCommandDescriptor','System.String,NuclearOption.Chat.ChatCommandDescriptor&','System.Boolean'),
+        @('CmdExecuteCommand','System.String,System.String,Mirage.INetworkPlayer','Cysharp.Threading.Tasks.UniTask`1<NuclearOption.ModdingApi.ChatCommandResult>')
+    )) {
+        $method = @($commands.Methods | Where-Object Name -eq $contract[0])
+        if ($method.Count -ne 1 -or (($method[0].Parameters | ForEach-Object { $_.ParameterType.FullName }) -join ',') -ne $contract[1] -or
+            $method[0].ReturnType.FullName -ne $contract[2]) { throw "Native command contract changed: $($contract[0])" }
+    }
+    foreach ($route in @(@('ExecuteCommandLocal','SendServerCommand'), @('SendServerCommand','SendServerCommandAsync'))) {
+        $method = $commands.Methods | Where-Object Name -eq $route[0]
+        if (!@($method.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq $route[1] }).Count) {
+            throw "Native command route changed: $($route[0])"
+        }
+    }
+    $async = $commands.NestedTypes | Where-Object Name -like '<SendServerCommandAsync>*'
+    if (!@($async.Methods.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq 'CmdExecuteCommand' }).Count) {
+        throw 'Command transport no longer invokes the command RPC.'
+    }
+    $allMethods = @($commands.Methods) + @($commands.NestedTypes | ForEach-Object { $_.Methods })
+    foreach ($method in $allMethods) {
+        if (@($method.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.DeclaringType.Name -eq 'ChatManager' }).Count) {
+            throw 'Command manager now calls ChatManager; privacy route must be reviewed.'
+        }
     }
     $mfd = $game.MainModule.Types | Where-Object FullName -eq 'VirtualMFD'
     foreach ($contract in @(
@@ -43,10 +58,10 @@ $gamePath = Join-Path $managed 'Assembly-CSharp.dll'
 $game = [Mono.Cecil.AssemblyDefinition]::ReadAssembly($gamePath)
 try {
     Assert-GameContract $game
-    Write-Host 'PASS: native chat signatures, direct request route and MFD fields.'
+    Write-Host 'PASS: native private receiver, capability lookup, command RPC route without ChatManager calls, and MFD fields.'
     if ($SelfTest) {
         # Fault injection changes only in-memory copies; never the installed game files.
-        foreach ($fault in @('missing receiver','changed signature','changed route','changed MFD')) {
+        foreach ($fault in @('missing receiver','changed signature','changed route','chat fallback','changed MFD')) {
             $broken = [Mono.Cecil.AssemblyDefinition]::ReadAssembly($gamePath)
             try {
                 $chat = $broken.MainModule.Types | Where-Object FullName -eq 'NuclearOption.Chat.ChatManager'
@@ -55,9 +70,16 @@ try {
                     'missing receiver' { $receive.Name = 'ChangedReceiver' }
                     'changed signature' { $receive.Parameters[1].ParameterType = $broken.MainModule.TypeSystem.Int32 }
                     'changed route' {
-                        $send = $chat.Methods | Where-Object Name -eq 'SendChatMessage'
-                        $call = $send.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq 'CmdSendChatMessage' }
+                        $commands = $broken.MainModule.Types | Where-Object Name -eq 'ChatCommandManager'
+                        $send = $commands.Methods | Where-Object Name -eq 'ExecuteCommandLocal'
+                        $call = $send.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq 'SendServerCommand' } | Select-Object -First 1
                         $call.Operand = $receive
+                    }
+                    'chat fallback' {
+                        $commands = $broken.MainModule.Types | Where-Object Name -eq 'ChatCommandManager'
+                        $send = $commands.Methods | Where-Object Name -eq 'SendServerCommand'
+                        $call = $send.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.Name -eq 'ShowResult' } | Select-Object -First 1
+                        $call.Operand = ($chat.Methods | Where-Object Name -eq 'SendChatMessage')
                     }
                     'changed MFD' {
                         $mfd = $broken.MainModule.Types | Where-Object FullName -eq 'VirtualMFD'
@@ -83,14 +105,15 @@ try {
     $plugin = $client.MainModule.Types | Where-Object FullName -eq 'KellysMEDALSPublicUI.Plugin'
     $manifest = $plugin.CustomAttributes | Where-Object { $_.AttributeType.FullName -eq 'BepInEx.BepInPlugin' }
     $values = @($manifest.ConstructorArguments | ForEach-Object Value)
-    if ($values.Count -ne 3 -or $values[0] -ne 'kelly.nuclearoption.medals.publicui' -or $values[2] -ne '0.1.2') { throw 'Unexpected client plugin metadata.' }
+    if ($values.Count -ne 3 -or $values[0] -ne 'kelly.nuclearoption.medals.publicui' -or $values[2] -ne '0.1.3') { throw 'Unexpected client plugin metadata.' }
     $refs = @($client.MainModule.GetMemberReferences() | Where-Object { $_.DeclaringType.Scope.Name -match '^(Assembly-CSharp|Mirage|UnityEngine.*|Unity.TextMeshPro)$' })
     foreach ($reference in $refs) {
         if ($null -eq $reference.Resolve()) { throw "Unresolved game member: $($reference.FullName)" }
     }
     $update = $plugin.Methods | Where-Object Name -eq 'Update'
-    $sends = @($update.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.DeclaringType.FullName -eq 'NuclearOption.Chat.ChatManager' -and $_.Operand.Name -eq 'SendChatMessage' })
-    if ($sends.Count -ne 1) { throw 'Client no longer uses the audited direct request route.' }
-    Write-Host "PASS: client 0.1.2 metadata, request call and $($refs.Count) game/Unity/Mirage member bindings."
+    $sends = @($update.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.DeclaringType.FullName -eq 'NuclearOption.Chat.ChatCommandManager' -and $_.Operand.Name -eq 'ExecuteCommandLocal' })
+    if ($sends.Count -ne 1) { throw 'Client no longer uses the audited native command route.' }
+    if (@($client.MainModule.GetMemberReferences() | Where-Object { $_.Name -match 'SendChatMessage|CanSend' }).Count) { throw 'Client contains an ordinary chat send reference.' }
+    Write-Host "PASS: client 0.1.3 metadata, native-only request call and $($refs.Count) game/Unity/Mirage member bindings."
     Write-Host "Assembly-CSharp SHA256: $((Get-FileHash -LiteralPath $gamePath).Hash)"
 } finally { $client.Dispose(); $resolver.Dispose() }

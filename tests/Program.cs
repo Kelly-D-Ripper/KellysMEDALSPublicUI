@@ -10,6 +10,7 @@ internal static class Program
     private static void Check(bool pass, string name) { checks++; if (!pass) throw new Exception(name); }
     private static void Main()
     {
+        PrivacyHarness.Run();
         var rows = Enumerable.Range(0, 296).Select(i => new MedalView {
             Key = "medal_" + i, Name = "Medal " + i, Description = "Requirement " + i,
             Category = i % 2 == 0 ? "Combat" : "Support", Mode = "Universal", Tier = "Bronze",

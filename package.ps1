@@ -6,7 +6,7 @@ $root = $PSScriptRoot
 & (Join-Path $root 'tests/Test-GameApi.ps1') -GameDir $GameDir -SelfTest
 $dist = Join-Path $root 'dist'
 New-Item -ItemType Directory -Force -Path $dist | Out-Null
-$zip = Join-Path $dist 'KellysMEDALSPublicUI-0.1.2-CLIENT.zip'
+$zip = Join-Path $dist 'KellysMEDALSPublicUI-0.1.3-CLIENT.zip'
 if (Test-Path -LiteralPath $zip) { throw 'Release archive already exists; preserve it or choose a new version.' }
 $files = [ordered]@{
     'BepInEx/plugins/KellysMEDALSPublicUI/KellysMEDALSPublicUI.dll' = 'bin/Release/KellysMEDALSPublicUI.dll'
@@ -40,6 +40,6 @@ try {
 } finally { $archive.Dispose() }
 $sums = @("$((Get-FileHash -LiteralPath $zip).Hash)  $([IO.Path]::GetFileName($zip))",
     "$((Get-FileHash -LiteralPath (Join-Path $root 'bin/Release/KellysMEDALSPublicUI.dll')).Hash)  BepInEx/plugins/KellysMEDALSPublicUI/KellysMEDALSPublicUI.dll")
-$sums | Set-Content -LiteralPath (Join-Path $dist 'MEDALS-UI-0.1.2-SHA256SUMS.txt') -Encoding ascii
+$sums | Set-Content -LiteralPath (Join-Path $dist 'MEDALS-UI-0.1.3-SHA256SUMS.txt') -Encoding ascii
 Write-Host "Packaged and hash-verified $zip"
 $sums | Write-Output

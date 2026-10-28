@@ -1,18 +1,22 @@
 # Kelly's MEDALS Public UI
 
-**Public preview v0.1.2 — only works on the Aryx Shipyard Server.**
+**Public preview v0.1.3 — for the Aryx Shipyard Server.**
 The client cannot display stats from any other server. The companion server update
 is not distributed; this repository contains the client only.
 
+**Requires its private MEDALS 1.13.2+ backend update.** Until that separate server
+update is activated, the panel stays unavailable and sends nothing. This release
+does not install or restart the server.
+
 ## Download and install
 
-1. Download `KellysMEDALSPublicUI-0.1.2-CLIENT.zip` from
+1. Download `KellysMEDALSPublicUI-0.1.3-CLIENT.zip` from
    [Releases](https://github.com/Kelly-D-Ripper/KellysMEDALSPublicUI/releases).
 2. Close Nuclear Option. The client requires an existing BepInEx 5 installation.
 3. Extract the ZIP's `BepInEx` folder into your Nuclear Option game directory.
    The DLL should be at `BepInEx/plugins/KellysMEDALSPublicUI/KellysMEDALSPublicUI.dll`.
 4. Keep one active copy of the DLL. Put backups outside `BepInEx/plugins`.
-5. Join a server running MEDALS 1.13.1+, enlarge the map and press **MED**.
+5. Join Aryx Shipyard after its MEDALS 1.13.2+ update, enlarge the map and press **MED**.
 
 The download contains no server plugin, game files, BepInEx, SQLite or other mods.
 TALON and AIRLIFT are optional; their MFD buttons are preserved when present.
@@ -48,19 +52,22 @@ The first run creates `BepInEx/config/kelly.nuclearoption.medals.publicui.cfg`.
 Set `[General] Enabled = false` to disable the panel. Existing configs and databases
 are unaffected, and the client maintains no local stats database.
 
-## Nuclear Option 0.34.5 compatibility
+## Internal-command chat safeguard
 
-Version 0.1.2 is rebuilt and checked against Nuclear Option 0.34.5, Steam client
-build **26272685**. It preserves the direct private request route, which does not
-use the game's new typed slash-command parser. Medal rules, protocol, cached views
-and the MEDALS server 1.13.1+ requirement are unchanged. No database or configuration
-migration is needed. This is a compatibility rebuild, not a fix for a reproduced
-MEDALS gameplay failure.
+Version 0.1.3 removes ordinary-chat requests entirely. It sends no probe and has no
+chat fallback. Requests use Nuclear Option 0.34.5's native command RPC only after
+the current remote server advertises the matching MEDALS capability. Single-player,
+listen hosts, disconnected sessions and older/unsupported servers send nothing.
+The panel explains when the backend is unavailable. Connection, map, player or
+capability changes clear the old session. Client-side message hiding is not the
+privacy safeguard; keeping requests off the ordinary chat transport is.
 
-413 client logic checks, native hook/MFD checks and 167 game/Unity/Mirage member
-bindings pass. The audit also rejects four deliberately broken API contracts.
-Full multiplayer interaction and frame-time acceptance of this rebuilt client
-remain pending; preview status is retained. See [compatibility](COMPATIBILITY.md).
+62 actual-plugin tests with simulated game contexts and 413 protocol/UI checks pass.
+Native API checks verify the command route, absence of chat-send references, 180
+game/Unity/Mirage bindings and five deliberately broken contracts. Built against
+Steam client build **26272685**. Real-game single-player/listen-host and two-client
+multiplayer acceptance remain pending; preview status is retained. See
+[compatibility](COMPATIBILITY.md). Medal data, rewards and existing settings are unchanged.
 
 ## Build and test
 

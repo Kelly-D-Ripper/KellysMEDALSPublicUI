@@ -1,41 +1,54 @@
-# MEDALS UI 0.1.2 compatibility checks
+# MEDALS UI 0.1.3 compatibility and privacy checks
 
 Validated on 28 October 2026 against Nuclear Option 0.34.5 client build 26272685.
-The game's Assembly-CSharp SHA-256 was
+Assembly-CSharp SHA-256:
 `E9E6AC0F6C071359320B67A9A67AFB3B07316DFE78DBAA4760DB7AEEE47340A8`.
 
 ## Automated coverage
 
-- Native client build against the installed game, BepInEx and Unity assemblies.
-- 413 client logic checks: complete/partial/out-of-order snapshots, stale data,
-  replay rejection, disconnect reset, filters, revoked awards, MFD slot ownership,
-  viewport layout, cached rows, keep-alive behaviour and bounded reply scheduling.
-- Five native chat method signatures and three MFD field contracts.
-- The direct SendChatMessage path still calls CanSend and CmdSendChatMessage;
-  the compiled client uses that path rather than the typed command parser.
-- All 167 referenced game/Unity/Mirage members resolve; client GUID/version checked.
-- Four in-memory fault injections: missing receiver, changed signature, changed
-  request route and changed MFD field. All are rejected without editing game files.
-- Companion MEDALS server: 2,320 rule, ledger, commander, UI and idempotency checks
-  plus assembly/AWACS contract validation pass against the updated game.
+- Native client/server builds against installed game/BepInEx/Unity assemblies.
+- 62 tests compile the actual client Plugin.cs against game doubles: all 32
+  host/client/capability/Enabled/visibility combinations, valid native request,
+  nonce/renewal, capability removal/restoration, disconnect, remote-to-host switch,
+  ten invalid descriptors, command collisions, player/map/chat context changes,
+  missing contexts and disable cleanup. Zero ordinary chat sends.
+- 413 existing protocol/UI tests: snapshots, replay/stale rejection, session reset,
+  filters, MFD ownership/layout, keep-alives, cached views and bounded scheduling.
+- Native private receiver, replicated capability lookup, command RPC route and MFD
+  contracts. No ChatManager calls in the inspected native command manager or its
+  async state machines, and no ordinary-chat send references in the client DLL.
+- All 180 game/Unity/Mirage member references resolve; client GUID/version checked.
+- Five in-memory negative API tests reject a missing receiver, changed signature,
+  changed route, chat fallback and changed MFD field. No game files are edited.
+- Private server: 23 tests of the production adapter with game/ledger doubles,
+  authenticated sender/nonce checks, targeted replies, throttle and ownership;
+  2,320 existing MEDALS tests. No server code is included in this repository.
 
-Native checks require a legally installed game and BepInEx; CI does not distribute
-game assemblies and runs only the game-free logic suite. Static checks cannot prove
-runtime Harmony ordering, rendering, all game behaviours or network delivery.
+The capability is compatibility metadata from the connected server, not server
+identity certification or a promise about a malicious server. The safeguard removes
+ordinary-chat transport rather than hiding local output. An unsupported server is
+not probed. Even losing capability between check and execution cannot invoke a
+chat fallback through the audited native route.
 
-## Multiplayer acceptance checklist
+CI runs game-free tests only and distributes no game files. Native release checks
+require a legally installed game and BepInEx. Static/stubbed checks do not prove
+runtime Harmony ordering, visuals, gameplay, multiplayer delivery or performance.
 
-The previous 0.1.1 client's local log shows loading, MED slot registration and panel
-opening. The rebuilt 0.1.2 client still needs the following in-game acceptance:
+## Required real-game acceptance (pending)
 
-1. Join Aryx Shipyard, open MED and confirm your own medal records arrive privately.
-2. Exercise Next Awards, Earned, All, category/track filters and scrolling.
-3. Check MED beside AIR/TAL, different UI scales and occupied extra MFD slots.
-4. Earn an award and confirm progress/earned status refresh; verify stale-data recovery.
-5. Change maps, reconnect and switch player context: old records must not persist.
-6. Exercise normal chat and typed commands alongside MED; subscription packets must
-   not appear publicly. Test busy chat and simultaneous viewers for responsive UI.
+1. Single-player and listen-host: open MED, wait beyond two renewals; no internal
+   request in chat, no send, explanatory unavailable status.
+2. Unsupported multiplayer with a second unmodified client: open/close MED and
+   wait; no probe/request visible to either player or sent through ordinary chat.
+3. After the private MEDALS 1.13.2+ backend is installed by the server operator,
+   join Aryx with two clients. Each panel must receive only its player's records,
+   with no raw command text in either client's chat.
+4. Exercise Next/Earned/All, category/track filters, scrolling, UI scales and AIR/TAL.
+5. Earn an award, check renewal/stale recovery, disconnect/reconnect, switch maps
+   and supported/unsupported servers. Old personal records must not carry over.
+6. Exercise normal chat and native commands alongside simultaneous MED viewers.
 
 Database impact: none. Configuration impact: none; retain the existing Enabled
-setting. No change to the server protocol, 296-medal catalogue or 52-entry reward
-allow-list. No server installation or restart is required for this client release.
+setting. The 296-medal catalogue and 52-entry reward allow-list are unchanged.
+The separate private server upgrade is required for data. This public release
+does not install or restart it; older servers leave the panel safely unavailable.

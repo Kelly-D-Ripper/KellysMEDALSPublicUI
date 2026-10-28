@@ -6,11 +6,12 @@ using KellysMedalsUi;
 using Mirage;
 using NuclearOption.Chat;
 using NuclearOption.Networking;
+using NuclearOption.ModdingApi;
 using UnityEngine;
 
 namespace KellysMEDALSPublicUI;
 
-[BepInPlugin(PluginGuid, "Kelly's MEDALS Public UI", "0.1.2")]
+[BepInPlugin(PluginGuid, "Kelly's MEDALS Public UI", "0.1.3")]
 public sealed class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "kelly.nuclearoption.medals.publicui";
@@ -21,6 +22,8 @@ public sealed class Plugin : BaseUnityPlugin
     private Player? player;
     private ChatManager? chat;
     private DynamicMap? map;
+    private ChatCommandManager? commands;
+    internal string TransportStatus { get; private set; } = "Connect to a supported dedicated server";
     private float nextRequest;
     internal readonly MedalsUiSession Session = new MedalsUiSession();
 
@@ -37,7 +40,7 @@ public sealed class Plugin : BaseUnityPlugin
             harmony = new Harmony(PluginGuid);
             harmony.Patch(receive, prefix: new HarmonyMethod(typeof(Plugin), nameof(Receive)));
             mfd = new MedalsMfdUi(this, message => Logger.LogInfo(message));
-            Logger.LogInfo("MEDALS panel ready. Open MED on the map; requires MEDALS server 1.13.1+.");
+            Logger.LogInfo("MEDALS panel ready. Private command transport requires MEDALS server 1.13.2+. No chat fallback.");
         }
         catch (Exception error) { harmony?.UnpatchSelf(); Logger.LogError(error); enabled = false; }
     }
@@ -46,12 +49,36 @@ public sealed class Plugin : BaseUnityPlugin
         GameManager.GetLocalPlayer(out Player current);
         var currentChat = ChatManager.i;
         var currentMap = SceneSingleton<DynamicMap>.i;
-        if (current != player || currentChat != chat || currentMap != map)
+        var currentCommands = ChatCommandManager.i;
+        if (current != player || currentChat != chat || currentMap != map || currentCommands != commands)
         {
             Session.Reset(); nextRequest = 0;
-            player = current; chat = currentChat; map = currentMap;
+            player = current; chat = currentChat; map = currentMap; commands = currentCommands;
         }
-        return player != null && player.IsLocalPlayer && chat != null && map != null;
+        string status;
+        if (commands != null && commands.IsServer)
+            status = "Unavailable in single-player / local host";
+        else if (player == null || !player.IsLocalPlayer || chat == null || map == null || commands == null || !commands.IsClient)
+            status = "Connect to a supported dedicated server";
+        else if (!SupportsPrivateUi(commands))
+            status = "Requires MEDALS server 1.13.2+";
+        else status = "";
+        if (status.Length != 0 && (Session.Request != null || Session.Rows != null)) { Session.Reset(); nextRequest = 0; }
+        TransportStatus = status;
+        return status.Length == 0;
+    }
+    private static bool SupportsPrivateUi(ChatCommandManager manager)
+    {
+        // Replicated by this server, never inferred from local DLLs or a chat probe.
+        // ExecuteCommandLocal checks client/built-in commands first: reject collisions.
+        if (ChatCommandCollections.TryGetClientCommand(MedalsUiProtocol.ServerCommand, out _) ||
+            ChatCommandCollections.TryGetBuiltInServerCommand(MedalsUiProtocol.ServerCommand, out _) ||
+            !manager.TryGetModServerCommandDescriptor(MedalsUiProtocol.ServerCommand, out var descriptor)) return false;
+        var args = descriptor.Arguments;
+        return descriptor.Name == MedalsUiProtocol.ServerCommand && descriptor.Description == MedalsUiProtocol.Capability &&
+            (int)descriptor.RequiredPermissionLevel == 0 && (descriptor.Aliases == null || descriptor.Aliases.Length == 0) &&
+            args != null && args.Length == 1 && args[0].Name == "request" &&
+            args[0].Type == ChatArgumentType.Text && !args[0].Optional;
     }
     private void Update()
     {
@@ -59,14 +86,10 @@ public sealed class Plugin : BaseUnityPlugin
         mfd?.Tick(show?.Value == true);
         if (!connected || show?.Value != true || mfd?.Visible != true || Time.unscaledTime < nextRequest) return;
         string id = Session.Request == null || !Session.Fresh(Time.unscaledTime) ? Guid.NewGuid().ToString("N") : Session.Request;
-        string command = MedalsUiProtocol.CompactCommand + id;
-        // Shares the native chat budget with AIRLIFT. A renewable subscription avoids polling.
-        if (!ChatManager.CanSend(command, false, false)) { nextRequest = Time.unscaledTime + 3; return; }
         Session.Query(id);
         nextRequest = Time.unscaledTime + 30;
-        // Keep the direct network-chat route: 0.34.5's typed slash-command parser
-        // does not own the private MEDALS subscription protocol.
-        ChatManager.SendChatMessage(command, false);
+        // Native command RPC, NOT SendChatMessage: even capability loss has no chat fallback.
+        commands!.ExecuteCommandLocal(MedalsUiProtocol.ServerCommand, id);
     }
     internal void MfdOpened() { if (!Session.Fresh(Time.unscaledTime)) nextRequest = Math.Min(nextRequest, Time.unscaledTime); }
     private static bool Receive(string message)

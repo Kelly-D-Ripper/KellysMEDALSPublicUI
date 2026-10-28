@@ -1,4 +1,29 @@
-# MEDALS Public UI v0.1.2 — Nuclear Option 0.34.5 compatibility
+# MEDALS Public UI v0.1.3 — internal-command chat safeguard
+
+- Removes all ordinary-chat request sending; there is no chat fallback or capability probe.
+- Uses the game's native command RPC only when the current dedicated server advertises
+  the exact MEDALS capability. Local client/built-in command collisions are rejected.
+- Single-player, listen hosts, unsupported/old servers and disconnected contexts send
+  nothing. The panel shows why it is unavailable and discards the old session on changes.
+- Requires the separately managed, private MEDALS server **1.13.2+** update. Until
+  that update is activated, the panel is unavailable, including on an older Aryx backend.
+- Database impact: none. Configuration impact: none. Preserve the existing Enabled setting.
+
+Download `KellysMEDALSPublicUI-0.1.3-CLIENT.zip`, close the game, and replace the
+client DLL. Keep one active copy; backups belong outside the plugins directory.
+Only the UI and public documentation are included, never server code or player data.
+
+Validation: 62 actual-plugin tests with simulated game contexts, 413 existing client
+checks, native command-route inspection, 180 bindings and five negative API tests.
+The private server adapter also builds and passes 23 focused tests plus 2,320 existing
+MEDALS checks. These do not prove real-game/network behaviour: retain preview status
+pending single-player, listen-host and supported/unsupported two-client acceptance.
+No installation or server restart was performed as part of this release.
+
+## Historical v0.1.2 — Nuclear Option 0.34.5 compatibility
+
+The ordinary-chat route described below is superseded by 0.1.3. Its apparent privacy
+depended on a supporting server intercepting the request; it was unsafe on unsupported sessions.
 
 Client-only compatibility rebuild for Nuclear Option 0.34.5, Steam client build
 26272685. For the Aryx Shipyard Server; requires MEDALS server 1.13.1 or newer.

@@ -223,6 +223,7 @@ internal sealed class MedalsMfdUi : IDisposable
     private readonly MedalsViewCache view = new MedalsViewCache();
     private bool contentDirty = true;
     private int freshnessAge = int.MinValue;
+    private string transportStatus = "";
 
     private void Build()
     {
@@ -294,10 +295,11 @@ internal sealed class MedalsMfdUi : IDisposable
     {
         var rows = plugin.Session.Rows;
         int age = rows == null ? -2 : plugin.Session.Fresh(Time.unscaledTime) ? Math.Max(0, (int)(Time.unscaledTime - plugin.Session.ReceivedAt)) : -1;
-        if (age != freshnessAge)
+        if (age != freshnessAge || transportStatus != plugin.TransportStatus)
         {
             freshnessAge = age;
-            freshness!.text = age == -2 ? "Awaiting MEDALS server 1.13.1+…" : age == -1 ? "STALE • waiting for server refresh" : "LIVE • updated " + age + "s ago";
+            transportStatus = plugin.TransportStatus;
+            freshness!.text = transportStatus.Length != 0 ? transportStatus : age == -2 ? "Awaiting private MEDALS response…" : age == -1 ? "STALE • waiting for server refresh" : "LIVE • updated " + age + "s ago";
         }
         bool changed = view.Update(rows, category, mode, tab);
         if (!contentDirty && !changed) return;

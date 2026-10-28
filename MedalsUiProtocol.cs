@@ -21,6 +21,8 @@ namespace KellysMedalsUi
 
     internal static class MedalsUiProtocol
     {
+        internal const string ServerCommand = "kellymedalsui";
+        internal const string Capability = "Kelly's MEDALS private UI v1";
         internal const string Command = "/medals ui1 ";
         internal const string CompactCommand = "/medals ui2 ";
         internal const string Prefix = "[KMED1]|";

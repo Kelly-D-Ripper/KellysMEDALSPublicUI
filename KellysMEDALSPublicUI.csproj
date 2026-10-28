@@ -5,7 +5,7 @@
     <Nullable>enable</Nullable>
     <AssemblyName>KellysMEDALSPublicUI</AssemblyName>
     <RootNamespace>KellysMEDALSPublicUI</RootNamespace>
-    <Version>0.1.2</Version>
+    <Version>0.1.3</Version>
     <Deterministic>true</Deterministic>
     <NuGetAudit>false</NuGetAudit>
     <RestoreIgnoreFailedSources>true</RestoreIgnoreFailedSources>

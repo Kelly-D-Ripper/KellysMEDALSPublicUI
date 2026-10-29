@@ -6,7 +6,7 @@ is not distributed; this repository contains the client only.
 
 **Requires its private MEDALS 1.13.2+ backend update.** Until that separate server
 update is activated, the panel stays unavailable and sends nothing. This release
-does not install or restart the server.
+does not install the server.
 
 ## Download and install
 
@@ -20,10 +20,6 @@ does not install or restart the server.
 
 The download contains no server plugin, game files, BepInEx, SQLite or other mods.
 Version 0.1.4 embeds a DOORMAN entry with the mod description, author, GitHub and
-Discord links. Artwork can be added later. DOORMAN is optional.
-TALON and AIRLIFT are optional; their MFD buttons are preserved when present.
-Do not install this client DLL on a dedicated server. Remove it with the game
-closed to uninstall. Checksums accompany the release.
 
 ## Your medal record
 
@@ -39,37 +35,6 @@ The server supplies your own committed record. The client cannot grant medals,
 change progress or claim rewards. Progress bars show recorded metrics; reaching
 a threshold alone is not treated as an earned award. Revoked medals are labelled
 and excluded from Next Awards and Earned.
-
-Version 0.1.1 caches unchanged medal pages and uses small keep-alive replies instead
-of downloading the full catalogue repeatedly. Idle payload fell by approximately
-99.25% in the synthetic benchmark. Server replies and database admissions are bounded
-globally, with gameplay facts taking priority over UI reads. See
-[performance measurements and their limits](PERFORMANCE.md).
-
-MED reserves the last vacant extra MFD position. It never replaces the three native
-buttons or an occupied mod button. If all extra buttons are occupied, it waits for
-a vacancy. Closing the map hides the panel; switching native MFD pages closes it.
-
-The first run creates `BepInEx/config/kelly.nuclearoption.medals.publicui.cfg`.
-Set `[General] Enabled = false` to disable the panel. Existing configs and databases
-are unaffected, and the client maintains no local stats database.
-
-## Internal-command chat safeguard
-
-Version 0.1.3 removes ordinary-chat requests entirely. It sends no probe and has no
-chat fallback. Requests use Nuclear Option 0.34.5's native command RPC only after
-the current remote server advertises the matching MEDALS capability. Single-player,
-listen hosts, disconnected sessions and older/unsupported servers send nothing.
-The panel explains when the backend is unavailable. Connection, map, player or
-capability changes clear the old session. Client-side message hiding is not the
-privacy safeguard; keeping requests off the ordinary chat transport is.
-
-62 actual-plugin tests with simulated game contexts and 413 protocol/UI checks pass.
-Native API checks verify the command route, absence of chat-send references, 180
-game/Unity/Mirage bindings and five deliberately broken contracts. Built against
-Steam client build **26272685**. Real-game single-player/listen-host and two-client
-multiplayer acceptance remain pending; preview status is retained. See
-[compatibility](COMPATIBILITY.md). Medal data, rewards and existing settings are unchanged.
 
 ## Build and test
 

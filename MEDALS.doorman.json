@@ -1,0 +1,14 @@
+{
+  "plugin": "kelly.nuclearoption.medals.publicui",
+  "name": "Kelly's MEDALS Public UI",
+  "author": "Brig. Gen. Kelly D. Ripper",
+  "description": "Track your career on the Aryx Shipyard Server with a MEDALS panel on the enlarged map. Browse earned medals, upcoming awards, progress and full requirements; filter by category and PvP, PvE or Universal track.",
+  "links": [
+    { "label": "GitHub", "url": "https://github.com/Kelly-D-Ripper/KellysMEDALSPublicUI" },
+    { "label": "Discord", "url": "https://discord.gg/shipyard" }
+  ],
+  "update": {
+    "repository": "Kelly-D-Ripper/KellysMEDALSPublicUI",
+    "asset": "KellysMEDALSPublicUI-*-CLIENT.zip"
+  }
+}

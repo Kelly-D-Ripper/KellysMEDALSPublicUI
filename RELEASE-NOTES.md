@@ -1,4 +1,17 @@
-# MEDALS Public UI v0.1.3 — internal-command chat safeguard
+# MEDALS Public UI v0.1.4 — DOORMAN entry
+
+Adds an embedded DOORMAN entry for the client UI with its description, author,
+GitHub and Discord links. There is no image yet. DOORMAN is optional, and the
+entry does not add a runtime dependency. Uses the existing MEDALS server 1.13.2+
+interface and preserves the 0.1.3 internal-command chat safeguard.
+
+Download `KellysMEDALSPublicUI-0.1.4-CLIENT.zip`; close the game before replacing
+the client DLL. Preserve existing settings. This is a client-only release; no server
+code or database is included. Database/configuration impact: none. DOORMAN's normal
+embedded metadata reader and the native compatibility and client tests pass.
+In-game DOORMAN rendering and multiplayer acceptance remain pending.
+
+## Previous release: v0.1.3 — internal-command chat safeguard
 
 - Removes all ordinary-chat request sending; there is no chat fallback or capability probe.
 - Uses the game's native command RPC only when the current dedicated server advertises

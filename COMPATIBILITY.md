@@ -1,4 +1,8 @@
-# MEDALS UI 0.1.3 compatibility and privacy checks
+# MEDALS UI 0.1.4 compatibility and privacy checks
+
+Version 0.1.4 adds an embedded DOORMAN entry. It has been read using DOORMAN's
+normal embedded metadata reader; in-game display and link interaction remain pending.
+The client runtime transport and acceptance checklist below are unchanged from 0.1.3.
 
 Validated on 28 October 2026 against Nuclear Option 0.34.5 client build 26272685.
 Assembly-CSharp SHA-256:

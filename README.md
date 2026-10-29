@@ -1,6 +1,6 @@
 # Kelly's MEDALS Public UI
 
-**Public preview v0.1.3 — for the Aryx Shipyard Server.**
+**Public UI v0.1.4 — for the Aryx Shipyard Server.**
 The client cannot display stats from any other server. The companion server update
 is not distributed; this repository contains the client only.
 
@@ -10,7 +10,7 @@ does not install or restart the server.
 
 ## Download and install
 
-1. Download `KellysMEDALSPublicUI-0.1.3-CLIENT.zip` from
+1. Download `KellysMEDALSPublicUI-0.1.4-CLIENT.zip` from
    [Releases](https://github.com/Kelly-D-Ripper/KellysMEDALSPublicUI/releases).
 2. Close Nuclear Option. The client requires an existing BepInEx 5 installation.
 3. Extract the ZIP's `BepInEx` folder into your Nuclear Option game directory.
@@ -19,6 +19,8 @@ does not install or restart the server.
 5. Join Aryx Shipyard after its MEDALS 1.13.2+ update, enlarge the map and press **MED**.
 
 The download contains no server plugin, game files, BepInEx, SQLite or other mods.
+Version 0.1.4 embeds a DOORMAN entry with the mod description, author, GitHub and
+Discord links. Artwork can be added later. DOORMAN is optional.
 TALON and AIRLIFT are optional; their MFD buttons are preserved when present.
 Do not install this client DLL on a dedicated server. Remove it with the game
 closed to uninstall. Checksums accompany the release.

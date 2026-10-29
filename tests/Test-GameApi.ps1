@@ -105,7 +105,17 @@ try {
     $plugin = $client.MainModule.Types | Where-Object FullName -eq 'KellysMEDALSPublicUI.Plugin'
     $manifest = $plugin.CustomAttributes | Where-Object { $_.AttributeType.FullName -eq 'BepInEx.BepInPlugin' }
     $values = @($manifest.ConstructorArguments | ForEach-Object Value)
-    if ($values.Count -ne 3 -or $values[0] -ne 'kelly.nuclearoption.medals.publicui' -or $values[2] -ne '0.1.3') { throw 'Unexpected client plugin metadata.' }
+    if ($values.Count -ne 3 -or $values[0] -ne 'kelly.nuclearoption.medals.publicui' -or $values[2] -ne '0.1.4') { throw 'Unexpected client plugin metadata.' }
+    $resources = @($client.MainModule.Resources | Where-Object Name -eq 'doorman.json')
+    if ($resources.Count -ne 1 -or $resources[0] -isnot [Mono.Cecil.EmbeddedResource]) { throw 'Expected one embedded DOORMAN manifest.' }
+    $stream = $resources[0].GetResourceStream()
+    $reader = [IO.StreamReader]::new($stream, [Text.Encoding]::UTF8)
+    try { $card = $reader.ReadToEnd() | ConvertFrom-Json } finally { $reader.Dispose(); $stream.Dispose() }
+    $expected = 'Track your career on the Aryx Shipyard Server with a MEDALS panel on the enlarged map. Browse earned medals, upcoming awards, progress and full requirements; filter by category and PvP, PvE or Universal track.'
+    if ($card.plugin -cne $values[0] -or $card.name -cne $values[1] -or $card.author -cne 'Brig. Gen. Kelly D. Ripper' -or $card.description -cne $expected -or $null -ne $card.image -or
+        @($card.links | Where-Object { $_.label -eq 'GitHub' -and $_.url -ceq 'https://github.com/Kelly-D-Ripper/KellysMEDALSPublicUI' }).Count -ne 1 -or
+        @($card.links | Where-Object { $_.label -eq 'Discord' -and $_.url -ceq 'https://discord.gg/shipyard' }).Count -ne 1 -or
+        $card.update.repository -cne 'Kelly-D-Ripper/KellysMEDALSPublicUI' -or $card.update.asset -cne 'KellysMEDALSPublicUI-*-CLIENT.zip') { throw 'Unexpected embedded DOORMAN metadata.' }
     $refs = @($client.MainModule.GetMemberReferences() | Where-Object { $_.DeclaringType.Scope.Name -match '^(Assembly-CSharp|Mirage|UnityEngine.*|Unity.TextMeshPro)$' })
     foreach ($reference in $refs) {
         if ($null -eq $reference.Resolve()) { throw "Unresolved game member: $($reference.FullName)" }
@@ -114,6 +124,6 @@ try {
     $sends = @($update.Body.Instructions | Where-Object { $_.Operand -is [Mono.Cecil.MethodReference] -and $_.Operand.DeclaringType.FullName -eq 'NuclearOption.Chat.ChatCommandManager' -and $_.Operand.Name -eq 'ExecuteCommandLocal' })
     if ($sends.Count -ne 1) { throw 'Client no longer uses the audited native command route.' }
     if (@($client.MainModule.GetMemberReferences() | Where-Object { $_.Name -match 'SendChatMessage|CanSend' }).Count) { throw 'Client contains an ordinary chat send reference.' }
-    Write-Host "PASS: client 0.1.3 metadata, native-only request call and $($refs.Count) game/Unity/Mirage member bindings."
+    Write-Host "PASS: client 0.1.4 metadata and DOORMAN entry, native-only request call and $($refs.Count) game/Unity/Mirage member bindings."
     Write-Host "Assembly-CSharp SHA256: $((Get-FileHash -LiteralPath $gamePath).Hash)"
 } finally { $client.Dispose(); $resolver.Dispose() }

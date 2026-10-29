@@ -11,7 +11,7 @@ using UnityEngine;
 
 namespace KellysMEDALSPublicUI;
 
-[BepInPlugin(PluginGuid, "Kelly's MEDALS Public UI", "0.1.3")]
+[BepInPlugin(PluginGuid, "Kelly's MEDALS Public UI", "0.1.4")]
 public sealed class Plugin : BaseUnityPlugin
 {
     public const string PluginGuid = "kelly.nuclearoption.medals.publicui";
